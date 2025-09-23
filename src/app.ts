@@ -5,11 +5,11 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
-import swaggerSpec from "@/lib/swagger";
-import authRouter from "@/routes/auth";
-import { connectToDatabase } from "@/lib/db";
-import { errorHandler } from "@/middlewares/errorHandler";
-import logger from "@/lib/logger";
+import swaggerSpec from "./lib/swagger.js";
+import authRouter from "./routes/auth.js";
+import { connectToDatabase } from "./lib/db.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
+import logger from "./lib/logger.js";
 
 dotenv.config();
 

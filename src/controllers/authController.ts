@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
-import User from "@/models/user";
-import * as authService from "@/services/authService";
-import { UserProfile } from "@/types/user.types";
-import { generateAccessToken } from "@/utils/token.utils";
-import logger from "@/lib/logger";
+import User from "../models/user.js";
+import * as authService from "../services/authService.js";
+import { UserProfile } from "../types/user.types.js";
+import { generateAccessToken } from "../utils/token.utils.js";
+import logger from "../lib/logger.js";
 
 export const googleLogin = async (req: Request, res: Response) => {
   try {

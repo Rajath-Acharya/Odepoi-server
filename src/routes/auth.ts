@@ -3,7 +3,7 @@ import {
   googleLogin,
   logout,
   refreshToken,
-} from "@/controllers/authController";
+} from "../controllers/authController.js";
 
 const router = Router();
 
