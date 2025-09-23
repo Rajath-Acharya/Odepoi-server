@@ -3,19 +3,34 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
-import journeysRouter from "./routes/journeys";
-import usersRouter from "./routes/users";
-import { connectToDatabase } from "./lib/db";
-import { errorHandler } from "./middlewares/errorHandler";
+import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "@/lib/swagger";
+import authRouter from "@/routes/auth";
+import { connectToDatabase } from "@/lib/db";
+import { errorHandler } from "@/middlewares/errorHandler";
+import logger from "@/lib/logger";
 
 dotenv.config();
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:8081",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "1mb" }));
-app.use(morgan("dev"));
+// Morgan middleware to log HTTP requests to Winston
+const stream = {
+  write: (message: string) => logger.http(message.trim()),
+};
+
+app.use(morgan("combined", { stream }));
+app.use(cookieParser());
 
 app.get("/ping", (_req, res) => {
   res.send("pong");
@@ -26,12 +41,13 @@ app.get("/health", async (_req, res) => {
     await connectToDatabase();
     res.json({ status: "ok" });
   } catch (err) {
+    logger.error(`Health check failed: ${err}`);
     res.status(500).json({ status: "error" });
   }
 });
 
-app.use("/api/journeys", journeysRouter);
-app.use("/api/users", usersRouter);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/v1/auth", authRouter);
 
 app.use(errorHandler);
 
