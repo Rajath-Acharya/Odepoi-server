@@ -2,30 +2,43 @@ import { Request, Response } from 'express';
 import { PostModel } from '../models/post.js';
 import { uploadBufferToS3 } from '../lib/s3.js';
 
+
 export async function createPost(req: Request, res: Response) {
     try {
-        const userId = req.body.userId || 'testuser'; // Adjust based on your auth
+        const userId = req.body.userId || 'testuser';
         const { description } = req.body;
-        const file = req.file;
+        const file = req.file; // Populated by Multer
 
-        if (!file || !description) {
-            return res.status(400).json({ error: 'Image and description are required.' });
+        // 1. Validation
+        if (!file) {
+            return res.status(400).json({ error: 'Image file is required.' });
+        }
+        if (!description) {
+            return res.status(400).json({ error: 'Description is required.' });
         }
 
-        // Upload image to S3
-        const s3Result = await uploadBufferToS3(file.originalname, file.buffer, file.mimetype);
+        // 2. Upload to S3 
+        // We use file.buffer because we used memoryStorage()
+        const s3Result = await uploadBufferToS3(
+            file.originalname, 
+            file.buffer, 
+            file.mimetype
+        );
 
-        // Create post in DB
+        // 3. Create post in DB
         const post = await PostModel.create({
             user: userId,
-            imageUrl: s3Result.key,
+            imageUrl: s3Result.key, // Store only the S3 Key/Path
             description,
         });
 
         res.status(201).json(post);
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to create post', details: err });
-        // import { deleteFromS3 } from '../lib/s3.js'; // Good practice to cleanup S3
+    } catch (err: any) {
+        console.error("Upload error:", err);
+        res.status(500).json({ 
+            error: 'Failed to create post', 
+            details: err.message || err 
+        });
     }
 }
 
