@@ -9,13 +9,13 @@ const port = Number(process.env.PORT || 4000);
 
 const server = createServer(app);
 
-// connectToDatabase()
-//   .then(() => {
-server.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
-});
-// })
-// .catch((err) => {
-//   console.error("Failed to connect to database", err);
-//   process.exit(1);
-// });
+connectToDatabase()
+  .then(() => {
+    server.listen(port, () => {
+      console.log(`API listening on http://localhost:${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to connect to database", err);
+    process.exit(1);
+  });

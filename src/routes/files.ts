@@ -1,6 +1,18 @@
 import express from "express";
 import multer from "multer";
 import { uploadBufferToS3, getObjectFromS3 } from "../lib/s3.js";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION!, // The '!' tells TS "this won't be undefined"
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_KEY!,
+  },
+});
+console.log(process.env.AWS_REGION);
+
 
 const router = express.Router();
 
@@ -97,24 +109,27 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
  *       500:
  *         description: Internal server error while fetching from S3.
  */
+
+
 router.get("/test", async (_req, res, next) => {
   try {
     const key = "bg_wallpaper.jpeg";
-    const object = await getObjectFromS3(key);
+    const bucketName = process.env.AWS_S3_BUCKET || "your-bucket-name";
 
-    if (!object.body) {
-      return res
-        .status(404)
-        .json({ message: `Object ${key} not found or has no body.` });
-    }
+    console.log(bucketName);
+    
 
-    res.setHeader("Content-Type", object.contentType);
-
-    object.body.on("error", (err) => {
-      next(err);
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key,
     });
 
-    object.body.pipe(res);
+    // Create a URL that expires in 1 hour (3600 seconds)
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    console.log(url);
+    
+    res.status(200).json({ url });
   } catch (err) {
     next(err);
   }

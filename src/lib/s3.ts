@@ -7,6 +7,7 @@ import type {
   PutObjectCommandInput,
   GetObjectCommandInput,
 } from "@aws-sdk/client-s3";
+import sharp from 'sharp';
 import { Readable } from "stream";
 
 const { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_KEY, AWS_S3_BUCKET } =
@@ -29,23 +30,37 @@ export const s3Client = new S3Client({
   },
 });
 
+
 export async function uploadBufferToS3(
   key: string,
   body: Buffer,
   contentType: string
 ) {
+  const newKey = key.replace(/\.[^.]+$/, "") + ".webp";
+
+  const compressedBuffer = await sharp(body)
+    .resize({ width: 1500, withoutEnlargement: true })
+    .webp({
+      quality: 75,      // 75 is the "sweet spot" for WebP quality vs size
+      effort: 4,       // CPU effort (0-6): 4 is a good balance for speed
+      lossless: false  // Ensures lossy compression for smallest file size
+    })
+    .toBuffer();
+
   const params: PutObjectCommandInput = {
     Bucket: AWS_S3_BUCKET,
-    Key: key,
-    Body: body,
-    ContentType: contentType,
+    Key: newKey,
+    Body: compressedBuffer,
+    ContentType: 'image/webp', // Always set this for S3/Browser compatibility
   };
 
   await s3Client.send(new PutObjectCommand(params));
 
   return {
-    key,
+    key: newKey,
     bucket: AWS_S3_BUCKET,
+    originalSize: `${(body.length / 1024).toFixed(2)} KB`,
+    newSize: `${(compressedBuffer.length / 1024).toFixed(2)} KB`
   };
 }
 
