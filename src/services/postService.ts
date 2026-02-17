@@ -1,4 +1,4 @@
-import { getPresignedDownloadUrl } from '@/lib/s3.js';
+import { getPresignedDownloadUrl } from '../lib/s3.js';
 import { PostModel, Post } from '../models/post.js';
 import { Types } from 'mongoose';
 

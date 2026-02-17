@@ -11,8 +11,6 @@ import { Readable } from 'stream';
 
 const { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_KEY, AWS_S3_BUCKET } = process.env;
 
-console.log('ZZ AWS_REGION', AWS_REGION);
-
 if (!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_KEY || !AWS_S3_BUCKET) {
   // Fail fast at startup if required environment variables are missing
   throw new Error(
@@ -62,8 +60,6 @@ export async function getObjectFromS3(key: string) {
     Bucket: AWS_S3_BUCKET,
     Key: key,
   };
-
-  console.log('ZZ params', params, AWS_S3_BUCKET);
 
   const result = await s3Client.send(new GetObjectCommand(params));
 

@@ -12,7 +12,7 @@ const server = createServer(app);
 connectToDatabase()
   .then(() => {
     server.listen(port, () => {
-      console.log(`API listening on http://localhost:${port}`);
+      console.log(`Database connected and API listening on http://localhost:${port}`);
     });
   })
   .catch((err) => {
