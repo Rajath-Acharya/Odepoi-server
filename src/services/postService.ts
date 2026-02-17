@@ -1,3 +1,4 @@
+import { getPresignedDownloadUrl } from '@/lib/s3.js';
 import { PostModel, Post } from '../models/post.js';
 import { Types } from 'mongoose';
 
@@ -17,16 +18,32 @@ export const postService = {
     });
   },
 
-  async findAll(skip: number, limit: number): Promise<Post[]> {
-    return await PostModel.find()
+  async findAll(skip: number, limit: number): Promise<any[]> {
+    const posts = await PostModel.find()
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('user', 'username profilePic');
+      .populate('user', 'username profilePic')
+      .lean(); // Use lean() for faster read and to allow modifying the object
+
+    // Map through posts to attach temporary URLs
+    return await Promise.all(
+      posts.map(async (post) => {
+        if (post.imageUrl) {
+          // Replace the key with a real temporary URL
+          post.imageUrl = await getPresignedDownloadUrl(post.imageUrl);
+        }
+        return post;
+      }),
+    );
   },
 
-  async findById(id: string): Promise<Post | null> {
-    return await PostModel.findById(id).populate('user', 'username');
+  async findById(id: string): Promise<any | null> {
+    const post = await PostModel.findById(id).populate('user', 'username').lean();
+    if (post?.imageUrl) {
+      post.imageUrl = await getPresignedDownloadUrl(post.imageUrl);
+    }
+    return post;
   },
 
   async delete(id: string): Promise<Post | null> {
