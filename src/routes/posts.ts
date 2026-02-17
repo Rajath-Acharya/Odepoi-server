@@ -1,11 +1,5 @@
 import { Router } from 'express';
-import {
-  createPost,
-  getPosts,
-  getPostById,
-  deletePost,
-  toggleLikePost,
-} from '../controllers/postController.js';
+import { createPost, getPosts, deletePost, toggleLikePost } from '../controllers/postController.js';
 
 import { authenticate } from '../middlewares/authHandler.js'; // Assuming you have auth
 import multer from 'multer';
@@ -18,7 +12,6 @@ export const upload = multer({
 const router = Router();
 
 router.get('/', getPosts);
-router.get('/:id', getPostById);
 
 // Protected routes (require auth)
 router.post('/', upload.single('file'), createPost);
