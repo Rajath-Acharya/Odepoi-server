@@ -1,9 +1,6 @@
-import User from "../models/user.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../utils/token.utils.js";
-import { UserProfile } from "../types/user.types.js";
+import User from '../models/user.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/token.utils.js';
+import { UserProfile } from '../types/user.types.js';
 
 export const handleSocialLogin = async (profile: UserProfile) => {
   const { provider, providerId, email, username } = profile;

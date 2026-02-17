@@ -6,7 +6,7 @@ export interface Post {
   imageUrl: string;
   description: string;
   createdAt: Date;
-  likes?: Types.ObjectId[]; 
+  likes?: Types.ObjectId[];
 }
 
 const postSchema = new Schema<Post>({

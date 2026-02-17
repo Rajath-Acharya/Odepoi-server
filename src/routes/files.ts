@@ -1,18 +1,8 @@
-import express from "express";
-import multer from "multer";
-import { uploadBufferToS3, getObjectFromS3 } from "../lib/s3.js";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION!, // The '!' tells TS "this won't be undefined"
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_KEY!,
-  },
-});
-console.log(process.env.AWS_REGION);
-
+import express from 'express';
+import multer from 'multer';
+import { uploadBufferToS3, getObjectFromS3, getPresignedDownloadUrl } from '../lib/s3.js';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const router = express.Router();
 
@@ -62,14 +52,12 @@ const upload = multer({ storage: multer.memoryStorage() });
  *       500:
  *         description: Internal server error while uploading to S3.
  */
-router.post("/upload", upload.single("file"), async (req, res, next) => {
+router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     const file = req.file;
 
     if (!file) {
-      return res
-        .status(400)
-        .json({ message: "No file provided. Expected field name 'file'." });
+      return res.status(400).json({ message: "No file provided. Expected field name 'file'." });
     }
 
     const key = file.originalname;
@@ -77,7 +65,7 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     const result = await uploadBufferToS3(key, file.buffer, file.mimetype);
 
     return res.status(201).json({
-      message: "File uploaded successfully to S3.",
+      message: 'File uploaded successfully to S3.',
       key: result.key,
       bucket: result.bucket,
     });
@@ -88,9 +76,9 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
 
 /**
  * @swagger
- * /files/test:
+ * /files/download:
  *   get:
- *     summary: Test S3 connectivity by fetching bg_wallpaper.jpeg
+ *     summary: download url from key by fetching bg_wallpaper.jpeg
  *     tags: [Files]
  *     description: >
  *       Attempts to download bg_wallpaper.jpeg from the configured S3 bucket and
@@ -110,25 +98,13 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
  *         description: Internal server error while fetching from S3.
  */
 
-
-router.get("/test", async (_req, res, next) => {
+router.get('/download', async (_req, res, next) => {
   try {
-    const key = "bg_wallpaper.jpeg";
-    const bucketName = process.env.AWS_S3_BUCKET || "your-bucket-name";
-
-    console.log(bucketName);
-    
-
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-    });
+    const key = 'bg_wallpaper.jpeg';
 
     // Create a URL that expires in 1 hour (3600 seconds)
-    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const url = await getPresignedDownloadUrl(key);
 
-    console.log(url);
-    
     res.status(200).json({ url });
   } catch (err) {
     next(err);

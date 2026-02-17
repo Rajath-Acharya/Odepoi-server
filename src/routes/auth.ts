@@ -1,9 +1,5 @@
-import { Router } from "express";
-import {
-  googleLogin,
-  logout,
-  refreshToken,
-} from "../controllers/authController.js";
+import { Router } from 'express';
+import { googleLogin, logout, refreshToken } from '../controllers/authController.js';
 
 const router = Router();
 
@@ -60,7 +56,7 @@ const router = Router();
  *       500:
  *         description: Internal server error.
  */
-router.post("/google/login", googleLogin);
+router.post('/google/login', googleLogin);
 
 /**
  * @swagger
@@ -84,7 +80,7 @@ router.post("/google/login", googleLogin);
  *       403:
  *         description: Forbidden (refresh token is invalid).
  */
-router.post("/refresh-token", refreshToken);
+router.post('/refresh-token', refreshToken);
 
 /**
  * @swagger
@@ -99,6 +95,5 @@ router.post("/refresh-token", refreshToken);
  *       204:
  *         description: No content (user was not logged in).
  */
-
 
 export default router;

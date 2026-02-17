@@ -1,9 +1,9 @@
 // Import environment configuration FIRST before any other imports
-import "./config/env.js";
+import './config/env.js';
 
-import { createServer } from "http";
-import app from "./app.js";
-import { connectToDatabase } from "./lib/db.js";
+import { createServer } from 'http';
+import app from './app.js';
+import { connectToDatabase } from './lib/db.js';
 
 const port = Number(process.env.PORT || 4000);
 
@@ -16,6 +16,6 @@ connectToDatabase()
     });
   })
   .catch((err) => {
-    console.error("Failed to connect to database", err);
+    console.error('Failed to connect to database', err);
     process.exit(1);
   });
