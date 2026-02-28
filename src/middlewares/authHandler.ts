@@ -1,5 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 
-export function authenticate(req: Request, res: Response, next: NextFunction) {
-  next();
+export async function authenticate(
+  _request: FastifyRequest,
+  _reply: FastifyReply,
+) {
+  // Placeholder: add JWT verification when needed
 }

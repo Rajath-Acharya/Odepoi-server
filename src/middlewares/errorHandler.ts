@@ -1,9 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
+import { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export async function errorHandler(
+  err: FastifyError | Error,
+  _request: FastifyRequest,
+  reply: FastifyReply,
+) {
   console.error(err);
   if (err instanceof Error) {
-    return res.status(400).json({ error: err.message });
+    return reply.status(400).send({ error: err.message });
   }
-  res.status(500).json({ error: 'Internal server error' });
+  return reply.status(500).send({ error: 'Internal server error' });
 }

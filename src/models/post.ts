@@ -13,6 +13,7 @@ const postSchema = new Schema<Post>({
   user: { type: String, ref: 'User', required: true },
   imageUrl: { type: String, required: true },
   description: { type: String, required: true },
+  likes: { type: [Schema.Types.ObjectId], ref: 'User', default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,55 +1,75 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import cookieParser from 'cookie-parser';
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './lib/swagger.js';
-import authRouter from './routes/auth.js';
-import filesRouter from './routes/files.js';
-import postsRouter from './routes/posts.js';
-import { connectToDatabase } from './lib/db.js';
-import { errorHandler } from './middlewares/errorHandler.js';
-import logger from './lib/logger.js';
+// Import environment configuration FIRST before any other imports
+import './config/env';
 
-const app = express();
+import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyCookie from '@fastify/cookie';
+import fastifyMultipart from '@fastify/multipart';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
+import { connectToDatabase } from './lib/db';
+import authRoutes from './routes/auth';
+import filesRoutes from './routes/files';
+import postsRoutes from './routes/posts';
+import { errorHandler } from './middlewares/errorHandler';
+import logger from './lib/logger';
 
-app.use(helmet());
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:8081',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:8081';
+
+export default async function buildApp() {
+  const app = Fastify({ logger: false, bodyLimit: 1048576 });
+
+  app.addHook('onRequest', (request, _reply, done) => {
+    const msg = `${request.method} ${request.url}`;
+    logger.http(msg);
+    done();
+  });
+
+  await app.register(fastifyHelmet, { global: true });
+  await app.register(fastifyCors, {
+    origin: clientUrl,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
-  }),
-);
-app.use(express.json({ limit: '1mb' }));
-// Morgan middleware to log HTTP requests to Winston
-const stream = {
-  write: (message: string) => logger.http(message.trim()),
-};
+  });
+  await app.register(fastifyCookie);
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: 6 * 1024 * 1024 },
+  });
 
-app.use(morgan('combined', { stream }));
-app.use(cookieParser());
+  await app.register(fastifySwagger, {
+    openapi: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Odepoi Server API',
+        version: '1.0.0',
+        description: 'API documentation for the Odepoi server',
+      },
+      servers: [{ url: '/api/v1' }, { url: '/' }],
+    },
+  });
+  await app.register(fastifySwaggerUi, {
+    routePrefix: '/api-docs',
+    uiConfig: { docExpansion: 'list', deepLinking: true },
+  });
 
-app.get('/ping', (_req, res) => {
-  res.send('pong');
-});
+  app.setErrorHandler(errorHandler);
 
-app.get('/health', async (_req, res) => {
-  try {
-    await connectToDatabase();
-    res.json({ status: 'ok' });
-  } catch (err) {
-    logger.error(`Health check failed: ${err}`);
-    res.status(500).json({ status: 'error' });
-  }
-});
+  app.get('/ping', async () => 'pong');
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/files', filesRouter);
-app.use('/api/v1/posts', postsRouter);
+  app.get('/health', async (_request, reply) => {
+    try {
+      await connectToDatabase();
+      return reply.send({ status: 'ok' });
+    } catch (err) {
+      logger.error(`Health check failed: ${err}`);
+      return reply.status(500).send({ status: 'error' });
+    }
+  });
 
-app.use(errorHandler);
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
+  await app.register(filesRoutes, { prefix: '/api/v1/files' });
+  await app.register(postsRoutes, { prefix: '/api/v1/posts' });
 
-export default app;
+  return app;
+}

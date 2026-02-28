@@ -1,16 +1,57 @@
-import { Request, Response } from 'express';
-import { postService } from '../services/postService.js';
-import { deleteObjectFromS3, uploadBufferToS3 } from '../lib/s3.js';
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { postService } from '../services/postService';
+import { deleteObjectFromS3, uploadBufferToS3 } from '../lib/s3';
 
-export async function createPost(req: Request, res: Response) {
+interface CreatePostBody {
+  description?: string;
+  userId?: string;
+}
+
+interface DeletePostParams {
+  id: string;
+}
+
+interface ToggleLikeParams {
+  id: string;
+}
+
+interface ToggleLikeBody {
+  userId?: string;
+}
+
+export async function createPost(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
   try {
-    const { description, userId = 'testuser' } = req.body;
-    if (!req.file) return res.status(400).json({ error: 'Image required' });
+    const body: Record<string, string> = {};
+    let fileData: { buffer: Buffer; filename: string; mimetype: string } | null = null;
+
+    for await (const part of request.parts()) {
+      if (part.type === 'field') {
+        body[part.fieldname] = (part as { value: string }).value;
+      } else {
+        const filePart = part as { toBuffer: () => Promise<Buffer>; filename?: string; mimetype?: string };
+        const buffer = await filePart.toBuffer();
+        fileData = {
+          buffer,
+          filename: filePart.filename ?? 'image',
+          mimetype: filePart.mimetype ?? 'application/octet-stream',
+        };
+      }
+    }
+
+    if (!fileData) {
+      return reply.status(400).send({ error: 'Image required' });
+    }
+
+    const description = body.description ?? '';
+    const userId = body.userId ?? 'testuser';
 
     const s3Result = await uploadBufferToS3(
-      req.file.originalname,
-      req.file.buffer,
-      req.file.mimetype,
+      fileData.filename,
+      fileData.buffer,
+      fileData.mimetype,
     );
 
     const post = await postService.create({
@@ -19,48 +60,80 @@ export async function createPost(req: Request, res: Response) {
       imageUrl: s3Result.key,
     });
 
-    res.status(201).json(post);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Upload failed', details: err.message });
+    return reply.status(201).send(post);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Upload failed';
+    return reply
+      .status(500)
+      .send({ error: 'Upload failed', details: message });
   }
 }
 
-export async function getPosts(req: Request, res: Response) {
+interface GetPostsQuerystring {
+  page?: string;
+  limit?: string;
+}
+
+export async function getPosts(
+  request: FastifyRequest<{ Querystring: GetPostsQuerystring }>,
+  reply: FastifyReply,
+) {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = parseInt(request.query.page ?? '1') || 1;
+    const limit = parseInt(request.query.limit ?? '10') || 10;
     const posts = await postService.findAll((page - 1) * limit, limit);
-    res.json(posts);
-  } catch (err) {
-    res.status(500).json({ error: 'Error fetching feed' });
+    return reply.send(posts);
+  } catch {
+    return reply.status(500).send({ error: 'Error fetching feed' });
   }
 }
 
-export async function deletePost(req: Request, res: Response) {
-  try {
-    const post = await postService.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'Post not found' });
+interface DeletePostBody {
+  userId?: string;
+}
 
-    // Authorization Check
-    if (post.user.toString() !== req.body?.userId?.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
+export async function deletePost(
+  request: FastifyRequest<{
+    Params: DeletePostParams;
+    Body: DeletePostBody;
+  }>,
+  reply: FastifyReply,
+) {
+  try {
+    const post = await postService.findById(request.params.id);
+    if (!post) {
+      return reply.status(404).send({ error: 'Post not found' });
     }
 
-    if (post.imageUrl) await deleteObjectFromS3(post.imageUrl);
-    await postService.delete(req.params.id);
+    if (post.user.toString() !== request.body?.userId?.toString()) {
+      return reply.status(403).send({ error: 'Unauthorized' });
+    }
 
-    res.status(200).json({ message: 'Deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: 'Delete failed' });
+    if (post.imageUrl) {
+      await deleteObjectFromS3(post.imageUrl);
+    }
+    await postService.delete(request.params.id);
+
+    return reply.status(200).send({ message: 'Deleted successfully' });
+  } catch {
+    return reply.status(500).send({ error: 'Delete failed' });
   }
 }
 
-export async function toggleLikePost(req: Request, res: Response) {
+export async function toggleLikePost(
+  request: FastifyRequest<{
+    Params: ToggleLikeParams;
+    Body: ToggleLikeBody;
+  }>,
+  reply: FastifyReply,
+) {
   try {
-    const userId = req.body.userId || 'testuser';
-    const result = await postService.toggleLike(req.params.id, userId);
-    res.status(200).json(result);
-  } catch (err: any) {
-    res.status(err.message === 'Post not found' ? 404 : 500).json({ error: err.message });
+    const userId = request.body?.userId ?? 'testuser';
+    const result = await postService.toggleLike(request.params.id, userId);
+    return reply.status(200).send(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const status = message === 'Post not found' ? 404 : 500;
+    return reply.status(status).send({ error: message });
   }
 }

@@ -1,5 +1,5 @@
-import { getPresignedDownloadUrl } from '../lib/s3.js';
-import { PostModel, Post } from '../models/post.js';
+import { getPresignedDownloadUrl } from '../lib/s3';
+import { PostModel, Post } from '../models/post';
 import { Types } from 'mongoose';
 
 // Define the interface for creating a post to ensure type safety

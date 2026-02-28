@@ -1,21 +1,22 @@
 // Import environment configuration FIRST before any other imports
-import './config/env.js';
+import './config/env';
 
-import { createServer } from 'http';
-import app from './app.js';
-import { connectToDatabase } from './lib/db.js';
+import buildApp from './app';
+import { connectToDatabase } from './lib/db';
 
 const port = Number(process.env.PORT || 4000);
 
-const server = createServer(app);
+async function start() {
+  await connectToDatabase();
 
-connectToDatabase()
-  .then(() => {
-    server.listen(port, () => {
-      console.log(`Database connected and API listening on http://localhost:${port}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to connect to database', err);
-    process.exit(1);
-  });
+  const app = await buildApp();
+
+  await app.listen({ port, host: '0.0.0.0' });
+
+  console.log(`Database connected and API listening on http://localhost:${port}`);
+}
+
+start().catch((err) => {
+  console.error('Failed to start server', err);
+  process.exit(1);
+});
