@@ -14,11 +14,15 @@ import filesRoutes from './routes/files';
 import postsRoutes from './routes/posts';
 import { errorHandler } from './middlewares/errorHandler';
 import logger from './lib/logger';
+import * as Sentry from '@sentry/node';
+import './lib/sentry';
 
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:8081';
 
 export default async function buildApp() {
   const app = Fastify({ logger: false, bodyLimit: 1048576 });
+
+  Sentry.setupFastifyErrorHandler(app);
 
   app.addHook('onRequest', (request, _reply, done) => {
     const msg = `${request.method} ${request.url}`;
@@ -65,6 +69,16 @@ export default async function buildApp() {
       logger.error(`Health check failed: ${err}`);
       return reply.status(500).send({ status: 'error' });
     }
+  });
+
+  app.get('/debug-sentry', function mainHandler(req, res) {
+    // Send a log before throwing the error
+    Sentry.logger.info('User triggered test error', {
+      action: 'test_error_endpoint',
+    });
+    // Send a test metric before throwing the error
+    Sentry.metrics.count('test_counter', 1);
+    throw new Error('My first Sentry error!');
   });
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
